@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RestaurantOS — Gestión de Mesas</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f0f12; --bg2:#161619; --bg3:#1e1e23; --bg4:#26262d;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+  --gold:#c9963a; --gold-light:#f0c96e; --gold-dim:rgba(201,150,58,0.18);
+  --green:#3ecf6c; --green-dim:rgba(62,207,108,0.15);
+  --red:#e05252; --red-dim:rgba(224,82,82,0.15);
+  --blue:#4d9fff; --blue-dim:rgba(77,159,255,0.15);
+  --amber:#f0a030; --text:#f0ede8; --text2:#9a9590; --text3:#5a574f;
+  --shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;user-select:none}
+.topbar{height:56px;min-height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;z-index:100}
+.brand{width:210px;padding:0 18px;display:flex;align-items:center;gap:10px;border-right:1px solid var(--border);flex-shrink:0}
+.brand-icon{font-size:20px}
+.brand-name{font-family:'Playfair Display',serif;font-size:16px;color:var(--gold-light)}
+.brand-sub{font-size:9px;color:var(--text3);font-weight:500;letter-spacing:.1em;text-transform:uppercase}
+.topbar-center{flex:1;display:flex;align-items:center;gap:8px;padding:0 16px;overflow:hidden;min-width:0}
+.clock-badge{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:7px;flex-shrink:0}
+.clock-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.floor-tabs{display:flex;gap:4px;overflow-x:auto;flex-shrink:1;min-width:0}
+.floor-tab{padding:5px 12px;border-radius:7px;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.floor-tab:hover{background:var(--bg3);color:var(--text)}
+.floor-tab.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)}
+.btn-add-floor{padding:4px 10px;border-radius:7px;background:transparent;border:1px dashed var(--border2);color:var(--text3);font-size:11px;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.btn-add-floor:hover{border-color:var(--gold);color:var(--gold)}
+.summary-chips{display:flex;gap:5px;margin-left:auto;flex-shrink:0}
+.chip{padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap}
+.topbar-right{padding:0 14px;display:flex;align-items:center;gap:8px;border-left:1px solid var(--border);flex-shrink:0}
+.btn-edit{padding:6px 12px;border-radius:7px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.btn-edit:hover{background:var(--bg4);color:var(--text)}
+.btn-edit.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)}
+.main{flex:1;display:flex;overflow:hidden}
+.floor-wrap{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+.floor-canvas{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:40px 40px}
+.floor-label{position:absolute;top:16px;left:20px;font-family:'Playfair Display',serif;font-size:20px;color:var(--text3);pointer-events:none;z-index:1}
+.edit-overlay{position:absolute;inset:0;z-index:5;background:rgba(201,150,58,.03);border:2px dashed rgba(201,150,58,.22);pointer-events:none;display:none}
+.edit-overlay.show{display:block}
+.edit-toolbar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:9px 14px;display:none;align-items:center;gap:9px;box-shadow:var(--shadow);z-index:50}
+.edit-toolbar.show{display:flex}
+.et-label{color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.et-sep{width:1px;height:22px;background:var(--border)}
+.et-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px}
+.et-btn:hover{background:var(--bg4);color:var(--text)}
+.et-btn.danger{border-color:var(--border2);color:var(--text2)}
+.et-btn.danger:hover{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.et-btn.primary{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)}
+.et-btn.primary:hover{background:rgba(201,150,58,.3)}
+.et-btn.del-mesa{background:var(--red-dim);border-color:var(--red);color:var(--red);opacity:0;pointer-events:none;transition:all .2s}
+.et-btn.del-mesa.visible{opacity:1;pointer-events:auto}
+.shape-select{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:6px;padding:4px 7px;font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none}
+
+/* TABLE WIDGET SVG */
+.table-widget{position:absolute;z-index:10;cursor:pointer;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))}
+.edit-mode .table-widget{cursor:grab}
+.edit-mode .table-widget.dragging{cursor:grabbing}
+.table-widget svg{overflow:visible;display:block}
+.table-widget:hover svg{filter:drop-shadow(0 0 8px rgba(201,150,58,0.5))}
+.table-widget.selected svg{filter:drop-shadow(0 0 10px rgba(201,150,58,0.9))}
+.edit-mode .table-widget.edit-selected svg{filter:drop-shadow(0 0 10px rgba(224,82,82,0.9))}
+/* rename inline */
+.tw-rename-input{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1.5px solid var(--gold);color:var(--text);font-size:12px;font-weight:700;font-family:'Playfair Display',serif;border-radius:5px;padding:3px 7px;width:60px;outline:none;text-align:center;z-index:30}
+
+/* SIDEBAR */
+.sidebar{width:330px;min-width:260px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:13px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-head-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--text)}
+.sb-head-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.sb-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-tab{flex:1;padding:9px 6px;text-align:center;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif}
+.sb-tab:hover{color:var(--text2);background:var(--bg3)}
+.sb-tab.active{color:var(--gold-light);border-bottom-color:var(--gold);background:var(--gold-dim)}
+.sb-body{flex:1;overflow-y:auto;padding:12px 16px}
+.sb-body::-webkit-scrollbar{width:3px}
+.sb-body::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+.empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;height:180px;gap:10px;text-align:center}
+.empty-glyph{font-size:34px;opacity:.3}
+.empty-msg{font-size:12px;color:var(--text3);line-height:1.6}
+.ti-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ti-icon{width:38px;height:38px;border-radius:9px;background:var(--gold-dim);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:16px;color:var(--gold-light);font-weight:700;flex-shrink:0}
+.ti-name{font-family:'Playfair Display',serif;font-size:14px;color:var(--text)}
+.ti-meta{font-size:10px;color:var(--text3);margin-top:3px}
+.spill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.sp-free{background:var(--green-dim);color:var(--green)}
+.sp-occupied{background:var(--gold-dim);color:var(--gold-light)}
+.sp-reserved{background:var(--blue-dim);color:var(--blue)}
+.sp-dot{width:4px;height:4px;border-radius:50%;background:currentColor}
+.sec-hdr{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);font-weight:600;margin:11px 0 7px}
+.status-btns{display:flex;gap:5px;margin-bottom:2px}
+.st-btn{flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.st-btn:hover{background:var(--bg4);color:var(--text)}
+.st-btn.act-free{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.st-btn.act-ocp{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)}
+.st-btn.act-res{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
+.order-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.order-row:last-child{border:none}
+.or-name{font-size:12px;font-weight:500;color:var(--text)}
+.or-ctrl{display:flex;align-items:center;gap:5px;margin-top:3px}
+.qty-btn{width:20px;height:20px;border-radius:4px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .12s;font-family:'DM Sans',sans-serif}
+.qty-btn:hover{background:var(--bg4);color:var(--text)}
+.qty-val{font-size:12px;font-weight:600;color:var(--text);min-width:14px;text-align:center}
+.or-unit{font-size:9px;color:var(--text3)}
+.or-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.or-price{font-size:12px;font-weight:600;color:var(--gold-light)}
+.del-item-btn{font-size:9px;color:var(--text3);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;padding:0;transition:color .12s}
+.del-item-btn:hover{color:var(--red)}
+.total-block{margin-top:10px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:10px 12px}
+.total-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0}
+.grand-row{display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--text);padding:7px 0 0;margin-top:5px;border-top:1px solid var(--border)}
+.grand-row span:last-child{color:var(--gold-light)}
+.menu-search{width:100%;padding:7px 11px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;outline:none;font-family:'DM Sans',sans-serif;margin-bottom:9px;transition:border-color .15s}
+.menu-search:focus{border-color:var(--gold)}
+.menu-search::placeholder{color:var(--text3)}
+.menu-cat{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);font-weight:600;margin:9px 0 5px}
+.menu-item{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border-radius:7px;cursor:default;transition:background .14s;border:1px solid transparent}
+.menu-item:hover{background:var(--bg3);border-color:var(--border)}
+.mi-name{font-size:12px;font-weight:500;color:var(--text)}
+.mi-desc{font-size:9px;color:var(--text3);margin-top:1px}
+.mi-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.mi-price{font-size:12px;font-weight:600;color:var(--gold-light)}
+.mi-add-btn{font-size:9px;padding:2px 8px;border-radius:4px;background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold-light);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;transition:all .12s}
+.mi-add-btn:hover{background:rgba(201,150,58,.35)}
+.custom-form{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px;margin-top:8px}
+.cf-title{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:9px}
+.cf-row{display:flex;gap:7px;margin-bottom:7px}
+.cf-input{flex:1;padding:6px 9px;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:11px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.cf-input:focus{border-color:var(--gold)}
+.cf-input::placeholder{color:var(--text3)}
+.cf-btn{padding:6px 12px;border-radius:6px;background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold-light);font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.cf-btn:hover{background:rgba(201,150,58,.35)}
+.receipt-head{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:11px;text-align:center}
+.receipt-table{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold-light);font-weight:700}
+.receipt-date{font-size:10px;color:var(--text3);margin-top:2px}
+.receipt-item{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border)}
+.receipt-item:last-child{border:none}
+.receipt-item span:last-child{color:var(--text);font-weight:500}
+.receipt-totals{background:linear-gradient(135deg,rgba(201,150,58,.1),rgba(201,150,58,.05));border:1px solid var(--gold);border-radius:9px;padding:12px;margin-top:11px}
+.rt-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0}
+.rt-grand{display:flex;justify-content:space-between;font-size:17px;font-weight:700;color:var(--gold-light);padding:9px 0 0;margin-top:7px;border-top:1px solid var(--gold)}
+.btn-cobrar{width:100%;padding:12px;border-radius:9px;background:linear-gradient(135deg,#c9963a,#e0b050);border:none;color:#1a1000;font-size:13px;font-weight:700;cursor:pointer;transition:all .18s;letter-spacing:.02em;font-family:'DM Sans',sans-serif;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-cobrar:hover{background:linear-gradient(135deg,#e0b050,#f0c96e);transform:translateY(-1px);box-shadow:0 4px 18px rgba(201,150,58,.4)}
+.btn-cobrar:active{transform:translateY(0)}
+.btn-cobrar:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-sec{width:100%;margin-top:7px;padding:8px;border-radius:7px;background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.btn-sec:hover{background:var(--bg3);color:var(--text)}
+.no-items{text-align:center;padding:20px 0;color:var(--text3);font-size:12px;line-height:1.7}
+.go-link{color:var(--gold-light);cursor:pointer}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:13px;padding:26px;width:340px;box-shadow:0 24px 70px rgba(0,0,0,.7);animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-family:'Playfair Display',serif;font-size:17px;color:var(--text);margin-bottom:3px}
+.modal p{font-size:11px;color:var(--text3);margin-bottom:18px}
+.field-group{margin-bottom:12px}
+.field-label{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.field-input{width:100%;padding:8px 11px;border-radius:7px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-size:12px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.field-input:focus{border-color:var(--gold)}
+.field-select{appearance:none}
+.modal-actions{display:flex;gap:8px;margin-top:18px}
+.m-cancel{flex:1;padding:9px;border-radius:7px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.m-cancel:hover{background:var(--bg4)}
+.m-ok{flex:1;padding:9px;border-radius:7px;background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold-light);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.m-ok:hover{background:rgba(201,150,58,.35)}
+/* modal confirmar libre */
+.confirm-word-input{width:100%;padding:10px 12px;background:var(--bg3);border:2px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-weight:600;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s;text-align:center;letter-spacing:.08em;margin-top:6px}
+.confirm-word-input:focus{border-color:var(--red)}
+.confirm-word-input.ok{border-color:var(--green)!important}
+.m-ok-danger{flex:1;padding:9px;border-radius:7px;background:var(--red-dim);border:1px solid var(--red);color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;opacity:.4;pointer-events:none}
+.m-ok-danger.ready{opacity:1;pointer-events:auto}
+.m-ok-danger.ready:hover{background:rgba(224,82,82,.35)}
+.warn-items{background:var(--red-dim);border:1px solid rgba(224,82,82,.4);border-radius:7px;padding:9px 11px;margin:10px 0;font-size:11px;color:var(--red)}
+.warn-items-list{margin-top:5px;font-size:10px;color:var(--text3);line-height:1.7}
+/* filtros categoría en Agregar */
+.cat-filters{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.cat-filter{padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.cat-filter:hover{background:var(--bg4);color:var(--text)}
+.cat-filter.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)}
+.price-filter-row{display:flex;gap:5px;align-items:center;margin-bottom:9px}
+.price-filter-row label{font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+.price-range-select{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:6px;padding:4px 8px;font-size:10px;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;flex:1}
+/* info servicio */
+.srv-block{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:10px}
+.srv-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text2);padding:3px 0}
+.srv-val{font-size:11px;color:var(--text);font-weight:500}
+.srv-val.missing{color:var(--text3);font-style:italic}
+.srv-input{flex:1;padding:5px 8px;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:11px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.srv-input:focus{border-color:var(--gold)}
+.srv-input::placeholder{color:var(--text3)}
+.srv-save-btn{padding:4px 10px;border-radius:5px;background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold-light);font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:5px;transition:all .15s;white-space:nowrap}
+.srv-save-btn:hover{background:rgba(201,150,58,.35)}
+.srv-edit-btn{font-size:9px;color:var(--text3);cursor:pointer;background:none;border:none;padding:0;font-family:'DM Sans',sans-serif;transition:color .12s;margin-left:6px}
+.srv-edit-btn:hover{color:var(--gold)}
+/* modal finalizar servicio */
+.fin-block{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:10px 0}
+.fin-row{display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+.fin-row:last-child{margin-bottom:0}
+.fin-label{font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.fin-val{font-size:12px;color:var(--text);font-weight:500}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;padding:10px 16px;box-shadow:var(--shadow);z-index:9999;display:flex;align-items:center;gap:9px;font-size:12px;color:var(--text2);opacity:0;transform:translateY(8px);transition:all .22s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🍷</div>
+    <div><div class="brand-name">RestaurantOS</div><div class="brand-sub">Mesa Manager</div></div>
+  </div>
+  <div class="topbar-center">
+    <div class="clock-badge"><div class="clock-dot"></div><span id="clock">00:00</span></div>
+    <div class="floor-tabs" id="floorTabs"></div>
+    <button class="btn-add-floor" onclick="addFloor()">+ Piso</button>
+    <div class="summary-chips" id="summaryChips"></div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-edit" id="editBtn" onclick="toggleEdit()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar plano
+    </button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="floor-wrap" id="floorWrap">
+    <div class="floor-canvas" id="floorCanvas">
+      <div class="floor-label" id="floorLabel"></div>
+      <div class="edit-overlay" id="editOverlay"></div>
+    </div>
+    <div class="edit-toolbar" id="editToolbar">
+      <span class="et-label">Modo edición</span>
+      <div class="et-sep"></div>
+      <span class="et-label" style="font-size:9px;color:var(--text3)">Tipo:</span>
+      <select class="shape-select" id="shapeSelect">
+        <option value="round">⬤ Mesa redonda</option>
+        <option value="rect">▬ Mesa rectangular</option>
+        <option value="bar">━ Barra</option>
+        <option value="cashier">🖥 Cajero</option>
+        <option value="wc">🚻 Baño</option>
+      </select>
+      <button class="et-btn primary" onclick="addTable()">+ Añadir</button>
+      <div class="et-sep"></div>
+      <!-- controles de objeto seleccionado -->
+      <div id="editSelControls" style="display:none;align-items:center;gap:6px">
+        <button class="et-btn" id="rotCCW" onclick="rotateSelected(-45)" title="Rotar ↺">↺</button>
+        <button class="et-btn" id="rotCW" onclick="rotateSelected(45)" title="Rotar ↻">↻</button>
+        <div class="et-sep"></div>
+        <button class="et-btn" onclick="resizeSelected(-10)" title="Más pequeña">－</button>
+        <button class="et-btn" onclick="resizeSelected(10)" title="Más grande">＋</button>
+        <div class="et-sep"></div>
+        <button class="et-btn" id="renameMesaBtn" onclick="startRenameSelected()" style="background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light)">✏️ Renombrar</button>
+        <button class="et-btn del-mesa visible" id="delMesaBtn" onclick="deleteSelectedEditTable()">🗑 Eliminar</button>
+      </div>
+      <div class="et-sep"></div>
+      <button class="et-btn danger" onclick="deleteFloor()">✕ Eliminar piso</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-head-title" id="sbTitle">Gestión de mesa</div>
+      <div class="sb-head-sub" id="sbSub">Selecciona una mesa del plano</div>
+    </div>
+    <div class="sb-tabs" id="sbTabs" style="display:none">
+      <button class="sb-tab active" id="tab-pedido" onclick="switchTab('pedido')">📋 Pedido</button>
+      <button class="sb-tab" id="tab-agregar" onclick="switchTab('agregar')">➕ Agregar</button>
+      <button class="sb-tab" id="tab-cobrar" onclick="switchTab('cobrar')">💳 Cobrar</button>
+      <button class="sb-tab" id="tab-info" onclick="switchTab('info')">👤 Info</button>
+    </div>
+    <div class="sb-body" id="sbBody">
+      <div class="empty-panel">
+        <div class="empty-glyph">🍽</div>
+        <div class="empty-msg">Haz clic en una mesa para ver el pedido, añadir productos y cobrar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- modal mesa -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>Nueva mesa</h3><p>Configura los datos de la nueva mesa</p>
+    <div class="field-group"><div class="field-label">Nombre / Número</div><input class="field-input" id="mName" placeholder="Ej: 5, Terraza 1..."></div>
+    <div class="field-group"><div class="field-label">Capacidad</div><input class="field-input" type="number" id="mCap" value="4" min="1" max="20"></div>
+    <div class="field-group"><div class="field-label">Estado</div>
+      <select class="field-input field-select" id="mStatus"><option value="free">Libre</option><option value="occupied">Ocupada</option><option value="reserved">Reservada</option></select>
+    </div>
+    <div class="modal-actions"><button class="m-cancel" onclick="closeModal()">Cancelar</button><button class="m-ok" onclick="confirmAddTable()">Crear</button></div>
+  </div>
+</div>
+
+<!-- modal piso -->
+<div class="modal-bg" id="floorModalBg">
+  <div class="modal">
+    <h3>Nuevo piso</h3><p>Dale un nombre al nuevo nivel</p>
+    <div class="field-group"><div class="field-label">Nombre del piso</div><input class="field-input" id="floorName" placeholder="Ej: Terraza, VIP, Sótano..."></div>
+    <div class="modal-actions"><button class="m-cancel" onclick="closeFloorModal()">Cancelar</button><button class="m-ok" onclick="confirmAddFloor()">Crear</button></div>
+  </div>
+</div>
+
+<!-- modal confirmar eliminar mesa (modo edición) -->
+<div class="modal-bg" id="delMesaModalBg">
+  <div class="modal">
+    <h3>🗑 Eliminar mesa</h3>
+    <p>Vas a eliminar <strong id="delMesaModalNum"></strong> del plano. Esta acción no se puede deshacer.</p>
+    <div class="field-group">
+      <div class="field-label">Escribe <span style="color:var(--red);font-weight:700">eliminar</span> para confirmar</div>
+      <input class="confirm-word-input" id="delMesaConfirmInput" placeholder="eliminar" oninput="onDelMesaInput(this)">
+    </div>
+    <div class="modal-actions">
+      <button class="m-cancel" onclick="closeDelMesaModal()">Cancelar</button>
+      <button class="m-ok-danger" id="delMesaConfirmBtn" onclick="confirmDelMesa()">Eliminar mesa</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal confirmar eliminar piso -->
+<div class="modal-bg" id="delPisoModalBg">
+  <div class="modal">
+    <h3>🗑 Eliminar piso</h3>
+    <p>Vas a eliminar el piso <strong id="delPisoModalNombre"></strong> junto con todas sus mesas (<strong id="delPisoMesasCount"></strong> en total). Esta acción no se puede deshacer.</p>
+    <div class="field-group">
+      <div class="field-label">Escribe <span style="color:var(--red);font-weight:700">eliminar</span> para confirmar</div>
+      <input class="confirm-word-input" id="delPisoConfirmInput" placeholder="eliminar" oninput="onDelPisoInput(this)">
+    </div>
+    <div class="modal-actions">
+      <button class="m-cancel" onclick="closeDelPisoModal()">Cancelar</button>
+      <button class="m-ok-danger" id="delPisoConfirmBtn" onclick="confirmDelPiso()">Eliminar piso</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal finalizar servicio -->
+<div class="modal-bg" id="finModalBg">
+  <div class="modal" style="width:360px">
+    <h3>💳 Finalizar servicio</h3>
+    <p>Confirma los datos antes de cerrar la mesa</p>
+    <div class="fin-block">
+      <div class="fin-row"><div class="fin-label">Mesa</div><div class="fin-val" id="finMesaNum">—</div></div>
+      <div class="fin-row"><div class="fin-label">Total a cobrar</div><div class="fin-val" id="finTotal" style="color:var(--gold-light);font-size:15px;font-weight:700">—</div></div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Quién recibió la mesa <span style="color:var(--red)">*</span></div>
+      <input class="field-input" id="finRecibio" placeholder="Nombre del mesero/a que abrió">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Quién cierra el servicio <span style="color:var(--red)">*</span></div>
+      <input class="field-input" id="finCierra" placeholder="Nombre de quien cobra">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Nombre del cliente <span style="color:var(--text3)">(opcional)</span></div>
+      <input class="field-input" id="finCliente" placeholder="Ej: Sr. Gómez, Mesa corporativa...">
+    </div>
+    <div class="modal-actions">
+      <button class="m-cancel" onclick="closeFinModal()">Cancelar</button>
+      <button class="m-ok" onclick="confirmCobrar()" style="background:linear-gradient(135deg,#c9963a,#e0b050);border-color:var(--gold);color:#1a1000">💳 Cobrar y cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal confirmar liberar mesa con pedidos -->
+<div class="modal-bg" id="freeModalBg">
+  <div class="modal">
+    <h3>⚠️ Mesa con pedido activo</h3>
+    <p>La mesa <strong id="freeModalNum"></strong> tiene productos en el pedido. Al ponerla en <b>Libre</b> se eliminarán todos.</p>
+    <div class="warn-items" id="freeModalItems"></div>
+    <div class="field-group">
+      <div class="field-label">Escribe <span style="color:var(--red);font-weight:700">eliminar</span> para confirmar</div>
+      <input class="confirm-word-input" id="freeConfirmInput" placeholder="eliminar" oninput="onFreeConfirmInput(this)">
+    </div>
+    <div class="modal-actions">
+      <button class="m-cancel" onclick="closeFreeModal()">Cancelar</button>
+      <button class="m-ok-danger" id="freeConfirmBtn" onclick="confirmFreeTable()">Eliminar pedido y liberar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
+
+<script>
+const MENU=[
+  {cat:'Entradas',items:[
+    {n:'Empanadas de pipián',d:'x3 unidades',p:12000},
+    {n:'Patacones con hogao',d:'Porción doble',p:14000},
+    {n:'Tabla de quesos',d:'Selección artesanal',p:48000},
+    {n:'Arepa con hogao',d:'Maíz pelao',p:9000},
+  ]},
+  {cat:'Platos fuertes',items:[
+    {n:'Bandeja paisa',d:'Completa',p:38000},
+    {n:'Ajiaco bogotano',d:'Con guasca y crema',p:32000},
+    {n:'Sancocho de gallina',d:'Con arroz y aguacate',p:29000},
+    {n:'Churrasco 300g',d:'Término a elección',p:55000},
+    {n:'Cazuela de frijoles',d:'Con chicharrón',p:22000},
+    {n:'Tamal bogotano',d:'Con pan y chocolate',p:19000},
+  ]},
+  {cat:'Bebidas',items:[
+    {n:'Jugo de lulo',d:'Natural',p:9000},
+    {n:'Limonada de coco',d:'Fría',p:11000},
+    {n:'Chocolate caliente',d:'Con queso',p:8000},
+    {n:'Cerveza artesanal',d:'330ml',p:13000},
+    {n:'Agua mineral',d:'500ml',p:4000},
+    {n:'Café tinto',d:'Espresso doble',p:4500},
+  ]},
+  {cat:'Postres',items:[
+    {n:'Flan de coco',d:'Con caramelo',p:13000},
+    {n:'Postre de natas',d:'Tradicional',p:11000},
+    {n:'Mazamorra con panela',d:'Porción grande',p:9000},
+  ]},
+];
+
+let floors=[
+  {id:'f1',name:'Salón Principal',tables:[
+    {id:'t1',num:'1',x:80,y:100,w:80,h:80,shape:'round',status:'occupied',cap:4,persons:3,horaEntrada:'19:30',recibio:'Carlos',cierra:null,cliente:null,rot:0,
+      items:[{id:'i1',n:'Bandeja paisa',q:1,p:38000},{id:'i2',n:'Jugo de lulo',q:2,p:9000},{id:'i3',n:'Café tinto',q:2,p:4500}]},
+    {id:'t2',num:'2',x:220,y:100,w:80,h:80,shape:'round',status:'free',cap:4,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+    {id:'t3',num:'3',x:370,y:100,w:100,h:80,shape:'rect',status:'occupied',cap:6,persons:5,horaEntrada:'19:15',recibio:'Ana',cierra:null,cliente:'Familia Rodríguez',rot:0,
+      items:[{id:'i4',n:'Ajiaco bogotano',q:3,p:32000},{id:'i5',n:'Churrasco 300g',q:2,p:55000},{id:'i6',n:'Cerveza artesanal',q:5,p:13000},{id:'i7',n:'Flan de coco',q:3,p:13000}]},
+    {id:'t4',num:'4',x:520,y:100,w:80,h:80,shape:'round',status:'free',cap:2,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+    {id:'t5',num:'5',x:80,y:240,w:80,h:80,shape:'round',status:'free',cap:4,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+    {id:'t6',num:'6',x:220,y:240,w:100,h:80,shape:'rect',status:'occupied',cap:6,persons:4,horaEntrada:'20:00',recibio:'Luis',cierra:null,cliente:null,rot:0,
+      items:[{id:'i8',n:'Sancocho de gallina',q:2,p:29000},{id:'i9',n:'Patacones con hogao',q:4,p:14000},{id:'i10',n:'Limonada de coco',q:4,p:11000}]},
+    {id:'t7',num:'7',x:370,y:240,w:80,h:80,shape:'round',status:'free',cap:2,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+    {id:'t8',num:'8',x:520,y:240,w:80,h:80,shape:'round',status:'occupied',cap:4,persons:2,horaEntrada:'20:10',recibio:'Carlos',cierra:null,cliente:null,rot:0,
+      items:[{id:'i11',n:'Tamal bogotano',q:2,p:19000},{id:'i12',n:'Chocolate caliente',q:2,p:8000}]},
+    {id:'t9',num:'9',x:190,y:370,w:240,h:50,shape:'bar',status:'occupied',cap:8,persons:3,horaEntrada:'19:45',recibio:'Ana',cierra:null,cliente:null,rot:0,
+      items:[{id:'i13',n:'Cerveza artesanal',q:3,p:13000},{id:'i14',n:'Tabla de quesos',q:1,p:48000}]},
+  ]},
+  {id:'f2',name:'Terraza',tables:[
+    {id:'t10',num:'1',x:80,y:80,w:80,h:80,shape:'round',status:'free',cap:4,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+    {id:'t11',num:'2',x:220,y:80,w:80,h:80,shape:'round',status:'occupied',cap:4,persons:2,horaEntrada:'20:05',recibio:'Sofía',cierra:null,cliente:null,rot:0,
+      items:[{id:'i15',n:'Cerveza artesanal',q:2,p:13000},{id:'i16',n:'Patacones con hogao',q:1,p:14000}]},
+    {id:'t12',num:'3',x:360,y:80,w:80,h:80,shape:'round',status:'free',cap:4,persons:0,items:[],horaEntrada:null,recibio:null,cierra:null,cliente:null,rot:0},
+  ]},
+];
+
+let currentFloorId='f1',editMode=false,selectedTableId=null,currentTab='pedido';
+let editSelectedTableId=null; // mesa seleccionada en modo edición (para eliminar)
+let idC=100,dragState=null,pendingShape='round';
+
+const fmt=n=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',minimumFractionDigits:0}).format(n);
+const uid=()=>'t'+(++idC)+'_'+Date.now();
+const iid=()=>'i'+(++idC)+'_'+Date.now();
+const fidGen=()=>'f'+Date.now();
+const getFloor=id=>floors.find(f=>f.id===id);
+const getTable=tid=>{for(const f of floors)for(const t of f.tables)if(t.id===tid)return t;return null};
+const cf=()=>getFloor(currentFloorId);
+const ttl=t=>{const s=t.items.reduce((a,i)=>a+i.q*i.p,0);return{sub:s,iva:Math.round(s*.19),tot:s+Math.round(s*.19)}};
+
+// clock
+function upClock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+upClock();setInterval(upClock,1000);
+
+// toast
+let toastT;
+function toast(msg,icon='✓'){
+  clearTimeout(toastT);
+  const el=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('toastIcon').textContent=icon+' ';
+  el.classList.add('show');
+  toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// floor tabs
+function renderFloorTabs(){
+  const tabs=document.getElementById('floorTabs');tabs.innerHTML='';
+  floors.forEach(f=>{
+    const b=document.createElement('button');
+    b.className='floor-tab'+(f.id===currentFloorId?' active':'');
+    b.textContent=f.name;
+    b.onclick=()=>{currentFloorId=f.id;selectedTableId=null;editSelectedTableId=null;currentTab='pedido';renderAll()};
+    b.ondblclick=()=>renameFloor(f.id,b);
+    tabs.appendChild(b);
+  });
+}
+function renameFloor(fid,btn){
+  const f=getFloor(fid);
+  const inp=document.createElement('input');
+  inp.style.cssText='background:var(--bg3);border:1px solid var(--gold);color:var(--text);font-size:11px;font-family:DM Sans,sans-serif;border-radius:5px;padding:3px 7px;width:95px;outline:none';
+  inp.value=f.name;btn.replaceWith(inp);inp.focus();inp.select();
+  const done=()=>{if(inp.value.trim())f.name=inp.value.trim();renderFloorTabs()};
+  inp.onblur=done;inp.onkeydown=e=>{if(e.key==='Enter'||e.key==='Escape')inp.blur()};
+}
+
+// summary
+function renderSummary(){
+  const all=floors.flatMap(f=>f.tables);
+  const ocp=all.filter(t=>t.status==='occupied').length;
+  const free=all.filter(t=>t.status==='free').length;
+  document.getElementById('summaryChips').innerHTML=
+    `<div class="chip" style="background:var(--green-dim);color:var(--green)">Libres: ${free}</div>
+     <div class="chip" style="background:var(--gold-dim);color:var(--gold-light)">Ocupadas: ${ocp}</div>`;
+}
+
+// canvas
+function renderCanvas(){
+  const canvas=document.getElementById('floorCanvas');
+  canvas.querySelectorAll('.table-widget').forEach(e=>e.remove());
+  const f=cf();if(!f)return;
+  document.getElementById('floorLabel').textContent=f.name;
+  f.tables.forEach(t=>canvas.appendChild(buildTW(t)));
+  canvas.className='floor-canvas'+(editMode?' edit-mode':'');
+  updateDelMesaBtn();
+}
+
+// SVG builders — versiones descriptivas con iconografía clara
+function makeSVG(t){
+  const w=t.w, h=t.h;
+  const rot=t.rot||0;
+  const isDecor=(t.shape==='cashier'||t.shape==='wc');
+  const editSel=editMode&&editSelectedTableId===t.id;
+  const sel=!editMode&&selectedTableId===t.id;
+
+  let fill1,fill2,stroke,dotC,chairC;
+  if(isDecor){
+    fill1='#16161e';fill2='#1e1e2a';stroke='rgba(160,160,220,0.5)';dotC='#9090cc';chairC='#2a2a3a';
+  } else if(t.status==='occupied'){
+    fill1='#28200e';fill2='#1e1800';stroke='rgba(201,150,58,0.65)';dotC='#f0a030';chairC='#2a2200';
+  } else {
+    fill1='#162216';fill2='#0e180e';stroke='rgba(62,207,108,0.5)';dotC='#3ecf6c';chairC='#0e1e0e';
+  }
+  if(sel)stroke='#f0c96e';
+  if(editSel)stroke='#e05252';
+
+  const{tot}=ttl(t);
+  const totTxt=t.status==='occupied'&&t.items.length>0?fmt(tot):'';
+  const lbl=isDecor?'':(t.status==='free'?'libre':t.persons+' pers.');
+  const gid='g'+t.id.replace(/[^a-z0-9]/gi,'');
+
+  let body='';
+
+  // ── MESA REDONDA ──────────────────────────────────────────────
+  if(t.shape==='round'){
+    const cx=w/2, cy=h/2, r=Math.min(w,h)/2-10;
+    const nChairs=t.cap||4;
+    let chairs='';
+    for(let i=0;i<Math.min(nChairs,8);i++){
+      const a=(i/Math.min(nChairs,8))*Math.PI*2-Math.PI/2;
+      const cx2=cx+Math.cos(a)*(r+9), cy2=cy+Math.sin(a)*(r+9);
+      chairs+=`<ellipse cx="${cx2.toFixed(1)}" cy="${cy2.toFixed(1)}" rx="7" ry="5" fill="${chairC}" stroke="${stroke}" stroke-width="1.3" transform="rotate(${(a*180/Math.PI+90).toFixed(0)},${cx2.toFixed(1)},${cy2.toFixed(1)})"/>`;
+    }
+    // platos en la mesa
+    const plateAngles=nChairs<=4?[0,Math.PI/2,Math.PI,Math.PI*3/2]:[0,Math.PI*2/3,Math.PI*4/3];
+    let plates='';
+    plateAngles.slice(0,Math.min(nChairs,4)).forEach(a=>{
+      const px=cx+Math.cos(a)*(r*0.45), py=cy+Math.sin(a)*(r*0.45);
+      plates+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5" fill="#111" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2.5" fill="rgba(255,255,255,0.07)"/>`;
+    });
+    body=`<defs>
+      <radialGradient id="${gid}" cx="38%" cy="32%">
+        <stop offset="0%" stop-color="${fill1}"/>
+        <stop offset="100%" stop-color="${fill2}"/>
+      </radialGradient>
+    </defs>
+    ${chairs}
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gid})" stroke="${stroke}" stroke-width="2.2"/>
+    <circle cx="${cx}" cy="${cy}" r="${r*0.85}" fill="none" stroke="${stroke}" stroke-width="0.5" opacity="0.35"/>
+    ${plates}
+    <circle cx="${cx}" cy="${cy-r*0.35}" r="3" fill="${dotC}" opacity="0.95"/>
+    <text x="${cx}" y="${cy+2}" text-anchor="middle" dominant-baseline="middle" font-family="Playfair Display,serif" font-size="${Math.max(10,Math.min(18,r*0.45))}" font-weight="700" fill="#f0ede8">${t.num}</text>
+    ${lbl?`<text x="${cx}" y="${cy+r*0.55}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="${Math.max(7,Math.min(9,r*0.18))}" fill="#5a574f">${lbl}</text>`:''}
+    ${totTxt?`<text x="${cx}" y="${cy+r*0.72}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="7" fill="#f0c96e" font-weight="600">${totTxt}</text>`:''}`;
+
+  // ── MESA RECTANGULAR ─────────────────────────────────────────
+  } else if(t.shape==='rect'){
+    const pad=11, tw=w-pad*2, th=h-pad*2;
+    const ncTop=Math.max(1,Math.round(tw/26));
+    const ncSide=Math.max(1,Math.round(th/26));
+    let chairs='';
+    // top & bottom
+    for(let i=0;i<ncTop;i++){
+      const cx2=pad+tw/(ncTop*2)*(2*i+1);
+      chairs+=`<rect x="${(cx2-8).toFixed(1)}" y="2" width="16" height="8" rx="3" fill="${chairC}" stroke="${stroke}" stroke-width="1.2"/>`;
+      chairs+=`<rect x="${(cx2-8).toFixed(1)}" y="${h-10}" width="16" height="8" rx="3" fill="${chairC}" stroke="${stroke}" stroke-width="1.2"/>`;
+    }
+    // sides
+    for(let i=0;i<ncSide;i++){
+      const cy2=pad+th/(ncSide*2)*(2*i+1);
+      chairs+=`<rect x="2" y="${(cy2-8).toFixed(1)}" width="8" height="16" rx="3" fill="${chairC}" stroke="${stroke}" stroke-width="1.2"/>`;
+      chairs+=`<rect x="${w-10}" y="${(cy2-8).toFixed(1)}" width="8" height="16" rx="3" fill="${chairC}" stroke="${stroke}" stroke-width="1.2"/>`;
+    }
+    // plates on table
+    let plates='';
+    for(let i=0;i<ncTop;i++){
+      const px=pad+tw/(ncTop*2)*(2*i+1);
+      plates+=`<circle cx="${px.toFixed(1)}" cy="${(pad+th*0.25).toFixed(1)}" r="5" fill="#111" stroke="rgba(255,255,255,0.13)" stroke-width="1"/>
+      <circle cx="${px.toFixed(1)}" cy="${(pad+th*0.75).toFixed(1)}" r="5" fill="#111" stroke="rgba(255,255,255,0.13)" stroke-width="1"/>`;
+    }
+    body=`<defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${fill1}"/><stop offset="100%" stop-color="${fill2}"/>
+      </linearGradient>
+    </defs>
+    ${chairs}
+    <rect x="${pad}" y="${pad}" width="${tw}" height="${th}" rx="6" fill="url(#${gid})" stroke="${stroke}" stroke-width="2.2"/>
+    <rect x="${pad+3}" y="${pad+3}" width="${tw*0.5}" height="${th*0.2}" rx="3" fill="rgba(255,255,255,0.03)"/>
+    ${plates}
+    <circle cx="${w/2}" cy="${pad+8}" r="3" fill="${dotC}" opacity="0.9"/>
+    <text x="${w/2}" y="${h/2+1}" text-anchor="middle" dominant-baseline="middle" font-family="Playfair Display,serif" font-size="${Math.max(9,Math.min(15,th*0.28))}" font-weight="700" fill="#f0ede8">${t.num}</text>
+    ${lbl?`<text x="${w/2}" y="${h/2+th*0.28}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="${Math.max(6,Math.min(8,th*0.14))}" fill="#5a574f">${lbl}</text>`:''}
+    ${totTxt?`<text x="${w/2}" y="${h/2+th*0.42}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="7" fill="#f0c96e" font-weight="600">${totTxt}</text>`:''}`;
+
+  // ── BARRA ─────────────────────────────────────────────────────
+  } else if(t.shape==='bar'){
+    const bh=h*0.52, by=h*0.28;
+    const nStools=Math.max(2,Math.floor((w-20)/22));
+    let stools='';
+    for(let i=0;i<nStools;i++){
+      const sx=12+i*(w-20)/(nStools-1||1);
+      stools+=`<circle cx="${sx.toFixed(1)}" cy="${(by-12).toFixed(1)}" r="7" fill="${chairC}" stroke="${stroke}" stroke-width="1.3"/>
+      <line x1="${sx.toFixed(1)}" y1="${(by-5).toFixed(1)}" x2="${sx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${stroke}" stroke-width="1.5" opacity="0.5"/>`;
+    }
+    // bottles on bar
+    const nbottles=Math.min(4,Math.floor((w-24)/20));
+    let bottles='';
+    for(let i=0;i<nbottles;i++){
+      const bx=14+i*(w-28)/(nbottles||1);
+      const btop=by+6, bbot=by+bh-4;
+      bottles+=`<rect x="${(bx-3).toFixed(1)}" y="${btop.toFixed(1)}" width="6" height="${(bbot-btop).toFixed(1)}" rx="2.5" fill="rgba(201,150,58,0.25)" stroke="${stroke}" stroke-width="0.8"/>
+      <rect x="${(bx-1.5).toFixed(1)}" y="${(btop-5).toFixed(1)}" width="3" height="5" rx="1" fill="rgba(201,150,58,0.4)"/>`;
+    }
+    body=`<defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${fill1}"/><stop offset="100%" stop-color="${fill2}"/>
+      </linearGradient>
+    </defs>
+    ${stools}
+    <rect x="4" y="${by}" width="${w-8}" height="${bh}" rx="5" fill="url(#${gid})" stroke="${stroke}" stroke-width="2.2"/>
+    <rect x="4" y="${by}" width="${w-8}" height="${bh*0.18}" rx="4" fill="rgba(255,255,255,0.05)"/>
+    <line x1="4" y1="${by+bh*0.5}" x2="${w-4}" y2="${by+bh*0.5}" stroke="${stroke}" stroke-width="0.5" opacity="0.3"/>
+    ${bottles}
+    <circle cx="14" cy="${by+bh/2}" r="3" fill="${dotC}" opacity="0.9"/>
+    <text x="${w/2}" y="${by+bh/2+1}" text-anchor="middle" dominant-baseline="middle" font-family="Playfair Display,serif" font-size="${Math.max(9,Math.min(13,bh*0.4))}" font-weight="700" fill="#f0ede8">${t.num}</text>
+    ${lbl?`<text x="${w/2+16}" y="${by+bh/2}" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans,sans-serif" font-size="8" fill="#5a574f">${lbl}</text>`:''}
+    ${totTxt?`<text x="${w/2}" y="${by+bh*0.82}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="7" fill="#f0c96e" font-weight="600">${totTxt}</text>`:''}`;
+
+  // ── CAJERO / CAJA REGISTRADORA ────────────────────────────────
+  } else if(t.shape==='cashier'){
+    body=`<defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#1c1c28"/><stop offset="100%" stop-color="#0e0e18"/>
+      </linearGradient>
+    </defs>
+    <!-- base / mueble caja -->
+    <rect x="4" y="${h*0.38}" width="${w-8}" height="${h*0.52}" rx="5" fill="url(#${gid})" stroke="rgba(140,140,220,0.55)" stroke-width="1.8"/>
+    <!-- cajón -->
+    <rect x="${w*0.1}" y="${h*0.62}" width="${w*0.8}" height="${h*0.2}" rx="3" fill="#0a0a14" stroke="rgba(140,140,220,0.35)" stroke-width="1"/>
+    <circle cx="${w/2}" cy="${h*0.72}" r="3" fill="rgba(180,180,255,0.4)"/>
+    <!-- visor / pantalla principal -->
+    <rect x="${w*0.08}" y="${h*0.07}" width="${w*0.84}" height="${h*0.33}" rx="5" fill="#080812" stroke="rgba(77,159,255,0.7)" stroke-width="1.8"/>
+    <!-- brillo pantalla -->
+    <rect x="${w*0.11}" y="${h*0.1}" width="${w*0.78}" height="${h*0.26}" rx="3" fill="rgba(30,60,120,0.25)"/>
+    <!-- símbolo $ en pantalla -->
+    <text x="${w*0.38}" y="${h*0.265}" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans,sans-serif" font-size="${Math.max(11,w*0.22)}" font-weight="800" fill="rgba(77,199,255,0.85)">$</text>
+    <!-- teclas numéricas -->
+    ${[0,1,2].map(row=>[0,1,2].map(col=>`<rect x="${(w*0.12+col*(w*0.24)).toFixed(1)}" y="${(h*0.44+row*(h*0.065)).toFixed(1)}" width="${(w*0.18).toFixed(1)}" height="${(h*0.05).toFixed(1)}" rx="1.5" fill="rgba(100,100,180,0.3)" stroke="rgba(120,120,200,0.4)" stroke-width="0.7"/>`).join('')).join('')}
+    <!-- label -->
+    <text x="${w*0.72}" y="${h*0.265}" text-anchor="middle" dominant-baseline="middle" font-family="DM Sans,sans-serif" font-size="${Math.max(7,w*0.12)}" font-weight="600" fill="rgba(150,150,220,0.9)">${t.num}</text>`;
+
+  // ── BAÑO ─────────────────────────────────────────────────────
+  } else if(t.shape==='wc'){
+    // Vista top-down: inodoro + lavamanos
+    const iw=w*0.44, ih=h*0.55; // inodoro
+    const ix=w*0.05, iy=h*0.1;
+    const lw=w*0.38, lh=h*0.3; // lavamanos
+    const lx=w*0.55, ly=h*0.12;
+    body=`<defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#13181a"/><stop offset="100%" stop-color="#0d1214"/>
+      </linearGradient>
+    </defs>
+    <!-- fondo habitación -->
+    <rect x="2" y="2" width="${w-4}" height="${h-4}" rx="6" fill="url(#${gid})" stroke="rgba(100,160,180,0.5)" stroke-width="1.8"/>
+    <!-- pared superior (línea) -->
+    <line x1="2" y1="2" x2="${w-2}" y2="2" stroke="rgba(100,160,180,0.7)" stroke-width="2"/>
+
+    <!-- INODORO — tank (cisterna) -->
+    <rect x="${ix.toFixed(1)}" y="${iy.toFixed(1)}" width="${iw.toFixed(1)}" height="${(ih*0.32).toFixed(1)}" rx="3" fill="#1a2428" stroke="rgba(100,180,200,0.5)" stroke-width="1.4"/>
+    <!-- INODORO — bowl (taza, forma oval) -->
+    <ellipse cx="${(ix+iw/2).toFixed(1)}" cy="${(iy+ih*0.7).toFixed(1)}" rx="${(iw*0.45).toFixed(1)}" ry="${(ih*0.35).toFixed(1)}" fill="#141e22" stroke="rgba(100,180,200,0.55)" stroke-width="1.4"/>
+    <!-- asiento (oval interior) -->
+    <ellipse cx="${(ix+iw/2).toFixed(1)}" cy="${(iy+ih*0.7).toFixed(1)}" rx="${(iw*0.34).toFixed(1)}" ry="${(ih*0.26).toFixed(1)}" fill="none" stroke="rgba(150,210,230,0.4)" stroke-width="1"/>
+    <!-- agua (centro) -->
+    <ellipse cx="${(ix+iw/2).toFixed(1)}" cy="${(iy+ih*0.7).toFixed(1)}" rx="${(iw*0.2).toFixed(1)}" ry="${(ih*0.14).toFixed(1)}" fill="rgba(30,100,140,0.35)"/>
+
+    <!-- LAVAMANOS — pileta -->
+    <rect x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" width="${lw.toFixed(1)}" height="${lh.toFixed(1)}" rx="${(lw*0.3).toFixed(1)}" fill="#141e22" stroke="rgba(100,180,200,0.5)" stroke-width="1.4"/>
+    <!-- reborde lavamanos -->
+    <rect x="${(lx+lw*0.12).toFixed(1)}" y="${(ly+lh*0.18).toFixed(1)}" width="${(lw*0.76).toFixed(1)}" height="${(lh*0.65).toFixed(1)}" rx="${(lw*0.22).toFixed(1)}" fill="rgba(30,80,110,0.3)" stroke="rgba(100,180,200,0.3)" stroke-width="0.8"/>
+    <!-- grifo -->
+    <rect x="${(lx+lw*0.42).toFixed(1)}" y="${(ly+lh*0.04).toFixed(1)}" width="${(lw*0.16).toFixed(1)}" height="${(lh*0.16).toFixed(1)}" rx="2" fill="rgba(160,200,220,0.6)"/>
+
+    <!-- puerta (abajo a la derecha, arco) -->
+    <line x1="${(w*0.6).toFixed(1)}" y1="${(h-2).toFixed(1)}" x2="${(w-2).toFixed(1)}" y2="${(h-2).toFixed(1)}" stroke="rgba(100,160,180,0.6)" stroke-width="2"/>
+    <path d="M${(w-2).toFixed(1)} ${(h*0.68).toFixed(1)} A${(w*0.38).toFixed(1)} ${(h*0.32).toFixed(1)} 0 0 0 ${(w*0.6).toFixed(1)} ${(h-2).toFixed(1)}" fill="rgba(100,160,180,0.08)" stroke="rgba(100,160,180,0.4)" stroke-width="1"/>
+
+    <!-- label WC -->
+    <text x="${w*0.5}" y="${h*0.92}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="${Math.max(7,Math.min(9,w*0.13))}" font-weight="700" fill="rgba(120,200,220,0.7)">${t.num}</text>`;
+  }
+
+  // Aplicar rotación al SVG completo
+  const rotAttr=rot?` style="transform:rotate(${rot}deg);transform-origin:center;display:block;"`: ' style="display:block;"';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"${rotAttr}>${body}</svg>`;
+}
+
+function buildTW(t){
+  const el=document.createElement('div');
+  const editSel=editMode&&editSelectedTableId===t.id;
+  el.className=`table-widget${(!editMode&&selectedTableId===t.id)?' selected':''}${editSel?' edit-selected':''}`;
+  el.id='tw-'+t.id;
+  el.style.cssText=`left:${t.x}px;top:${t.y}px;width:${t.w}px;height:${t.h}px;position:absolute;`;
+  el.innerHTML=makeSVG(t);
+
+  // mousedown: seleccionar (normal) o drag (edición)
+  el.addEventListener('mousedown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();
+
+    if(!editMode){
+      selectTable(t.id);
+      return;
+    }
+
+    // modo edición: drag directo igual que el original
+    const wrap=document.getElementById('floorWrap');
+    const r=wrap.getBoundingClientRect();
+    const ox=e.clientX-(r.left+t.x);
+    const oy=e.clientY-(r.top+t.y);
+    let moved=false;
+    el.style.zIndex=50;
+
+    const onMove=ev=>{
+      moved=true;
+      el.classList.add('dragging');
+      t.x=Math.round(Math.max(0,Math.min(ev.clientX-r.left-ox,r.width-t.w))/10)*10;
+      t.y=Math.round(Math.max(0,Math.min(ev.clientY-r.top-oy,r.height-t.h))/10)*10;
+      el.style.left=t.x+'px';
+      el.style.top=t.y+'px';
+    };
+
+    const onUp=()=>{
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+      el.style.zIndex='';
+      el.classList.remove('dragging');
+      if(!moved){
+        // click sin mover: seleccionar para eliminar
+        editSelectedTableId=(editSelectedTableId===t.id)?null:t.id;
+        renderCanvas();
+      }
+    };
+
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+
+  return el;
+}
+
+// botones toolbar edición
+function updateDelMesaBtn(){
+  const ctrl=document.getElementById('editSelControls');
+  const btn=document.getElementById('delMesaBtn');
+  if(!ctrl)return;
+  if(editMode&&editSelectedTableId){
+    const t=getTable(editSelectedTableId);
+    ctrl.style.display='flex';
+    if(btn)btn.textContent='🗑 '+(t?t.num:'');
+  } else {
+    ctrl.style.display='none';
+  }
+}
+
+function rotateSelected(deg){
+  const t=getTable(editSelectedTableId);if(!t)return;
+  t.rot=((t.rot||0)+deg+360)%360;
+  refreshTW(t);
+}
+
+function resizeSelected(delta){
+  const t=getTable(editSelectedTableId);if(!t)return;
+  const minS=40,maxS=320;
+  t.w=Math.max(minS,Math.min(maxS,t.w+delta));
+  t.h=Math.max(minS,Math.min(maxS,t.h+delta));
+  // barra mantiene proporción ancho/alto
+  if(t.shape==='bar'){t.h=Math.max(40,Math.min(100,t.h));t.w=Math.max(80,Math.min(320,t.w));}
+  const el=document.getElementById('tw-'+t.id);
+  if(el){el.style.width=t.w+'px';el.style.height=t.h+'px';}
+  refreshTW(t);
+}
+
+function startRenameSelected(){
+  if(!editSelectedTableId)return;
+  const t=getTable(editSelectedTableId);if(!t)return;
+  const el=document.getElementById('tw-'+t.id);if(!el)return;
+  el.style.zIndex=60;
+  const inp=document.createElement('input');
+  inp.className='tw-rename-input';
+  inp.value=t.num;
+  el.appendChild(inp);
+  inp.focus();inp.select();
+  const done=()=>{
+    const v=inp.value.trim();
+    if(v)t.num=v;
+    inp.remove();
+    el.style.zIndex='';
+    el.innerHTML=makeSVG(t);
+    toast('Mesa renombrada a "'+t.num+'"','✏️');
+  };
+  inp.onblur=done;
+  inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=t.num;inp.blur();}};
+}
+
+function deleteSelectedEditTable(){
+  if(!editSelectedTableId)return;
+  const t=getTable(editSelectedTableId);if(!t)return;
+  document.getElementById('delMesaModalNum').textContent='Mesa '+t.num;
+  document.getElementById('delMesaConfirmInput').value='';
+  document.getElementById('delMesaConfirmBtn').classList.remove('ready');
+  document.getElementById('delMesaModalBg').classList.add('show');
+  setTimeout(()=>document.getElementById('delMesaConfirmInput').focus(),120);
+}
+function onDelMesaInput(inp){
+  const ok=inp.value.trim().toLowerCase()==='eliminar';
+  inp.classList.toggle('ok',ok);
+  document.getElementById('delMesaConfirmBtn').classList.toggle('ready',ok);
+}
+function confirmDelMesa(){
+  if(document.getElementById('delMesaConfirmInput').value.trim().toLowerCase()!=='eliminar')return;
+  closeDelMesaModal();
+  cf().tables=cf().tables.filter(x=>x.id!==editSelectedTableId);
+  if(selectedTableId===editSelectedTableId)selectedTableId=null;
+  editSelectedTableId=null;
+  renderCanvas();renderSidebar();renderSummary();
+  toast('Mesa eliminada','🗑');
+}
+function closeDelMesaModal(){document.getElementById('delMesaModalBg').classList.remove('show');}
+
+// select (modo normal)
+function selectTable(id){
+  if(editMode)return;
+  const t=getTable(id);
+  if(!t)return;
+  // cajero y baño no tienen pedido
+  if(t.shape==='cashier'||t.shape==='wc')return;
+  if(selectedTableId!==id)menuFilter={cat:'Todos',search:''};
+  selectedTableId=id;
+  document.querySelectorAll('.table-widget').forEach(e=>e.classList.remove('selected'));
+  document.getElementById('tw-'+id)?.classList.add('selected');
+  currentTab=(t.status==='free'&&t.items.length===0)?'agregar':'pedido';
+  renderSidebar();
+}
+
+// sidebar
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.sb-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  renderSbBody();
+}
+
+function renderSidebar(){
+  const t=getTable(selectedTableId);
+  const sbTabs=document.getElementById('sbTabs');
+  if(!t||editMode){
+    sbTabs.style.display='none';
+    if(editMode){
+      document.getElementById('sbTitle').textContent='Modo edición';
+      document.getElementById('sbSub').textContent='Haz clic en una mesa para seleccionarla y eliminarla, o arrástrala';
+      document.getElementById('sbBody').innerHTML='<div class="empty-panel"><div class="empty-glyph">✏️</div><div class="empty-msg">Haz clic en una mesa para seleccionarla (se marcará en rojo).<br>Luego usa "Eliminar mesa" en la barra inferior.<br>O simplemente mantén presionado y arrastra para moverla.</div></div>';
+    } else {
+      document.getElementById('sbTitle').textContent='Gestión de mesa';
+      document.getElementById('sbSub').textContent='Selecciona una mesa del plano';
+      document.getElementById('sbBody').innerHTML='<div class="empty-panel"><div class="empty-glyph">🍽</div><div class="empty-msg">Haz clic en una mesa para ver el pedido, añadir productos y cobrar.</div></div>';
+    }
+    return;
+  }
+  sbTabs.style.display='flex';
+  const sl={free:'Libre',occupied:'Ocupada'};
+  document.getElementById('sbTitle').textContent='Mesa '+t.num;
+  document.getElementById('sbSub').textContent=`${cf().name} · Cap. ${t.cap} · ${t.status==='free'?'Libre':'Ocupada'}${t.recibio?' · 👤 '+t.recibio:''}`;
+  document.querySelectorAll('.sb-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+currentTab)?.classList.add('active');
+  renderSbBody();
+}
+
+function renderSbBody(){
+  const t=getTable(selectedTableId);if(!t)return;
+  const body=document.getElementById('sbBody');
+  if(currentTab==='pedido')body.innerHTML=tabPedido(t);
+  else if(currentTab==='agregar')body.innerHTML=tabAgregar(t);
+  else if(currentTab==='cobrar')body.innerHTML=tabCobrar(t);
+  else if(currentTab==='info')body.innerHTML=tabInfo(t);
+}
+
+function tabPedido(t){
+  const sc={free:'sp-free',occupied:'sp-occupied'};
+  const sl={free:'Libre',occupied:'Ocupada'};
+  const statusLabel=t.status==='free'?'Libre':t.status==='occupied'?'Ocupada':'Ocupada';
+  const statusClass=t.status==='free'?'sp-free':'sp-occupied';
+  let h=`<div class="ti-header">
+    <div class="ti-icon">${t.num}</div>
+    <div><div class="ti-name">Mesa ${t.num}</div>
+    <div class="ti-meta" style="margin-top:4px"><span class="spill ${statusClass}"><span class="sp-dot"></span>${statusLabel}</span>
+    ${t.recibio?`<span style="font-size:9px;color:var(--text3);margin-left:6px">👤 ${t.recibio}</span>`:''}
+    ${t.horaEntrada?`<span style="font-size:9px;color:var(--text3);margin-left:6px">🕐 ${t.horaEntrada}</span>`:''}
+    </div></div>
+  </div>
+  <div class="sec-hdr">Estado</div>
+  <div class="status-btns">
+    <button class="st-btn${t.status==='free'?' act-free':''}" onclick="setStatus('${t.id}','free')">Libre</button>
+    <button class="st-btn${t.status==='occupied'?' act-ocp':''}" onclick="setStatus('${t.id}','occupied')">Ocupada</button>
+  </div>`;
+  if(t.items.length===0){
+    h+=`<div class="no-items">Sin productos en el pedido.<br><span class="go-link" onclick="switchTab('agregar')">➕ Agregar productos</span></div>`;
+  } else {
+    const{sub,iva,tot}=ttl(t);
+    h+=`<div class="sec-hdr" style="margin-top:12px">Pedido · ${t.items.length} producto${t.items.length!==1?'s':''}</div>`;
+    t.items.forEach(item=>{
+      h+=`<div class="order-row">
+        <div>
+          <div class="or-name">${item.n}</div>
+          <div class="or-ctrl">
+            <button class="qty-btn" onclick="chgQty('${t.id}','${item.id}',-1)">−</button>
+            <span class="qty-val">${item.q}</span>
+            <button class="qty-btn" onclick="chgQty('${t.id}','${item.id}',1)">+</button>
+            <span class="or-unit">× ${fmt(item.p)}</span>
+          </div>
+        </div>
+        <div class="or-right">
+          <div class="or-price">${fmt(item.q*item.p)}</div>
+          <button class="del-item-btn" onclick="rmItem('${t.id}','${item.id}')">✕ quitar</button>
+        </div>
+      </div>`;
+    });
+    h+=`<div class="total-block">
+      <div class="total-row"><span>Subtotal</span><span>${fmt(sub)}</span></div>
+      <div class="total-row"><span>IVA (19%)</span><span>${fmt(iva)}</span></div>
+      <div class="grand-row"><span>Total</span><span>${fmt(tot)}</span></div>
+    </div>
+    <button class="btn-cobrar" onclick="switchTab('cobrar')" style="margin-top:11px">💳 Ir a cobrar · ${fmt(tot)}</button>
+    <button class="btn-sec" onclick="switchTab('agregar')">➕ Agregar más productos</button>`;
+  }
+  return h;
+}
+
+// estado de filtros del menú (por tab/mesa activa)
+let menuFilter={cat:'Todos',search:''};
+
+function tabAgregar(t){
+  const cats=['Todos',...MENU.map(c=>c.cat)];
+  let catBtns=cats.map(c=>`<button class="cat-filter${menuFilter.cat===c?' active':''}" onclick="setCatFilter('${c}','${t.id}')">${c}</button>`).join('');
+  let h=`<input class="menu-search" id="menuSearch" placeholder="Buscar producto..." oninput="setSearchFilter(this.value,'${t.id}')" value="${menuFilter.search}">
+  <div class="cat-filters">${catBtns}</div>
+  <div id="menuList">`;
+  h+=buildMenuList(t.id);
+  h+=`</div>
+  <div class="custom-form">
+    <div class="cf-title">Producto personalizado</div>
+    <div class="cf-row"><input class="cf-input" id="cpName" placeholder="Nombre del producto"></div>
+    <div class="cf-row">
+      <input class="cf-input" id="cpPrice" type="number" placeholder="Precio COP" min="0">
+      <button class="cf-btn" onclick="addCustom('${t.id}')">Añadir</button>
+    </div>
+  </div>`;
+  return h;
+}
+function buildMenuList(tid){
+  const lq=menuFilter.search.toLowerCase();
+  let h='';
+  MENU.forEach(cat=>{
+    if(menuFilter.cat!=='Todos'&&cat.cat!==menuFilter.cat)return;
+    const fi=cat.items.filter(i=>!lq||i.n.toLowerCase().includes(lq)||i.d.toLowerCase().includes(lq));
+    if(!fi.length)return;
+    h+=`<div class="menu-cat">${cat.cat}</div>`;
+    fi.forEach(item=>{
+      const esc=item.n.replace(/'/g,"\\'");
+      h+=`<div class="menu-item">
+        <div><div class="mi-name">${item.n}</div><div class="mi-desc">${item.d}</div></div>
+        <div class="mi-right">
+          <div class="mi-price">${fmt(item.p)}</div>
+          <button class="mi-add-btn" onclick="addItem('${tid}','${esc}',${item.p})">+ Añadir</button>
+        </div>
+      </div>`;
+    });
+  });
+  return h||'<div style="color:var(--text3);font-size:12px;padding:10px 0;text-align:center">Sin resultados</div>';
+}
+function setCatFilter(cat,tid){menuFilter.cat=cat;document.getElementById('menuList').innerHTML=buildMenuList(tid);document.querySelectorAll('.cat-filter').forEach(b=>{b.classList.toggle('active',b.textContent===cat)});}
+function setSearchFilter(val,tid){menuFilter.search=val;document.getElementById('menuList').innerHTML=buildMenuList(tid);}
+function filterMenu(q,tid){menuFilter.search=q;document.getElementById('menuList').innerHTML=buildMenuList(tid);}
+
+function tabCobrar(t){
+  if(!t.items.length)return`<div class="no-items" style="margin-top:20px">Sin productos en el pedido.<br><span class="go-link" onclick="switchTab('agregar')">➕ Agregar productos primero</span></div>`;
+  const{sub,iva,tot}=ttl(t);
+  const now=new Date().toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'});
+  let h=`<div class="receipt-head"><div class="receipt-table">Mesa ${t.num}</div><div class="receipt-date">${cf().name} · ${now}</div></div>
+  <div class="sec-hdr">Detalle del consumo</div>`;
+  t.items.forEach(i=>{h+=`<div class="receipt-item"><span>${i.q}× ${i.n}</span><span>${fmt(i.q*i.p)}</span></div>`;});
+  h+=`<div class="receipt-totals">
+    <div class="rt-row"><span>Subtotal</span><span>${fmt(sub)}</span></div>
+    <div class="rt-row"><span>IVA (19%)</span><span>${fmt(iva)}</span></div>
+    <div class="rt-grand"><span>TOTAL A PAGAR</span><span>${fmt(tot)}</span></div>
+  </div>
+  <button class="btn-cobrar" onclick="cobrar()">💳 Finalizar servicio · ${fmt(tot)}</button>
+  <button class="btn-sec" onclick="switchTab('pedido')">← Volver al pedido</button>`;
+  return h;
+}
+
+function tabInfo(t){
+  const hora=t.horaEntrada||null;
+  let h=`<div class="sec-hdr">Información del servicio</div>
+  <div class="srv-block">`;
+  // Hora entrada
+  h+=`<div class="srv-row"><span>🕐 Hora de entrada</span><span class="srv-val${hora?'':' missing'}">${hora||'No registrada'}</span></div>`;
+  // Quién recibió
+  h+=`<div class="srv-row" style="flex-direction:column;align-items:flex-start;gap:5px;padding:6px 0">
+    <span style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase">👤 Quién recibió la mesa</span>
+    <div style="display:flex;width:100%;gap:5px" id="recibioRow">`;
+  if(t.recibio){
+    h+=`<span class="srv-val" style="flex:1">${t.recibio}</span>
+    <button class="srv-edit-btn" onclick="editSrvField('${t.id}','recibio')">✏️ editar</button>`;
+  } else {
+    h+=`<input class="srv-input" id="inpRecibio" placeholder="Nombre del mesero/a" value="">
+    <button class="srv-save-btn" onclick="saveSrvField('${t.id}','recibio','inpRecibio')">Guardar</button>`;
+  }
+  h+=`</div></div>`;
+  // Cliente (opcional)
+  h+=`<div class="srv-row" style="flex-direction:column;align-items:flex-start;gap:5px;padding:6px 0">
+    <span style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase">🙍 Cliente <span style="font-weight:400;text-transform:none">(opcional)</span></span>
+    <div style="display:flex;width:100%;gap:5px" id="clienteRow">`;
+  if(t.cliente){
+    h+=`<span class="srv-val" style="flex:1">${t.cliente}</span>
+    <button class="srv-edit-btn" onclick="editSrvField('${t.id}','cliente')">✏️ editar</button>`;
+  } else {
+    h+=`<input class="srv-input" id="inpCliente" placeholder="Nombre del cliente" value="">
+    <button class="srv-save-btn" onclick="saveSrvField('${t.id}','cliente','inpCliente')">Guardar</button>`;
+  }
+  h+=`</div></div>`;
+  // Quién cierra
+  h+=`<div class="srv-row" style="flex-direction:column;align-items:flex-start;gap:5px;padding:6px 0">
+    <span style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.06em;text-transform:uppercase">🔐 Quién cierra el servicio</span>
+    <div style="display:flex;width:100%;gap:5px" id="cierraRow">`;
+  if(t.cierra){
+    h+=`<span class="srv-val" style="flex:1">${t.cierra}</span>
+    <button class="srv-edit-btn" onclick="editSrvField('${t.id}','cierra')">✏️ editar</button>`;
+  } else {
+    h+=`<input class="srv-input" id="inpCierra" placeholder="Nombre de quien cobra" value="">
+    <button class="srv-save-btn" onclick="saveSrvField('${t.id}','cierra','inpCierra')">Guardar</button>`;
+  }
+  h+=`</div></div>`;
+  h+=`</div>`;
+  if(t.items.length){
+    const{tot}=ttl(t);
+    h+=`<button class="btn-cobrar" onclick="cobrar()" style="margin-top:4px">💳 Finalizar servicio · ${fmt(tot)}</button>`;
+  }
+  return h;
+}
+function saveSrvField(tid,field,inputId){
+  const t=getTable(tid);if(!t)return;
+  const val=document.getElementById(inputId)?.value.trim();
+  if(!val){toast('Escribe un nombre','⚠️');return;}
+  t[field]=val;
+  renderSbBody();
+  toast('Guardado','✓');
+}
+function editSrvField(tid,field){
+  const t=getTable(tid);if(!t)return;
+  t[field]=null;
+  renderSbBody();
+}
+
+// toast contador por nombre de producto
+const toastCounts={};
+let toastCountTimer={};
+function addItem(tid,name,price){
+  const t=getTable(tid);if(!t)return;
+  const wasNew=t.status==='free';
+  if(wasNew){
+    t.status='occupied';
+    t.persons=1;
+    t.horaEntrada=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  }
+  const ex=t.items.find(i=>i.n===name);
+  if(ex){ex.q++;}else{t.items.push({id:iid(),n:name,q:1,p:price});}
+  refreshTW(t);
+  // rerenderizar solo si no estamos en agregar (para no perder foco de búsqueda)
+  if(currentTab!=='agregar') renderSbBody();
+
+  // toast con contador
+  toastCounts[name]=(toastCounts[name]||0)+1;
+  clearTimeout(toastCountTimer[name]);
+  const cnt=toastCounts[name];
+  toast(cnt>1?`${name} ×${cnt}`:`${name} añadido`,'✚');
+  toastCountTimer[name]=setTimeout(()=>{delete toastCounts[name];},2500);
+
+  // si es la primera vez y no hay quién recibió, sugerir ir a Info
+  if(wasNew&&!t.recibio){
+    setTimeout(()=>toast('Añade quién recibió la mesa en la pestaña 👤 Info','ℹ️'),800);
+  }
+}
+function addCustom(tid){
+  const name=document.getElementById('cpName')?.value.trim();
+  const price=parseInt(document.getElementById('cpPrice')?.value)||0;
+  if(!name||price<=0){toast('Completa nombre y precio','⚠️');return;}
+  addItem(tid,name,price);
+  if(document.getElementById('cpName'))document.getElementById('cpName').value='';
+  if(document.getElementById('cpPrice'))document.getElementById('cpPrice').value='';
+}
+function chgQty(tid,itemId,d){
+  const t=getTable(tid);if(!t)return;
+  const item=t.items.find(i=>i.id===itemId);if(!item)return;
+  item.q+=d;
+  if(item.q<=0){t.items=t.items.filter(i=>i.id!==itemId);toast('Producto eliminado','🗑');}
+  refreshTW(t);renderSbBody();
+}
+function rmItem(tid,itemId){
+  const t=getTable(tid);if(!t)return;
+  const item=t.items.find(i=>i.id===itemId);
+  t.items=t.items.filter(i=>i.id!==itemId);
+  refreshTW(t);renderSbBody();
+  if(item)toast(item.n+' eliminado','🗑');
+}
+let pendingFreeTableId=null;
+function setStatus(tid,status){
+  const t=getTable(tid);if(!t)return;
+  // Si va a libre y tiene pedidos: pedir confirmación
+  if(status==='free'&&t.items.length>0){
+    pendingFreeTableId=tid;
+    document.getElementById('freeModalNum').textContent='Mesa '+t.num;
+    const{tot}=ttl(t);
+    let listHtml='<div class="warn-items-list">';
+    t.items.forEach(i=>{listHtml+=`${i.q}× ${i.n} — ${fmt(i.q*i.p)}<br>`;});
+    listHtml+=`</div><strong style="color:var(--red)">Total: ${fmt(tot)}</strong>`;
+    document.getElementById('freeModalItems').innerHTML=listHtml;
+    document.getElementById('freeConfirmInput').value='';
+    document.getElementById('freeConfirmBtn').classList.remove('ready');
+    document.getElementById('freeModalBg').classList.add('show');
+    setTimeout(()=>document.getElementById('freeConfirmInput').focus(),120);
+    return;
+  }
+  applyStatus(tid,status);
+}
+function applyStatus(tid,status){
+  const t=getTable(tid);if(!t)return;
+  t.status=status;
+  if(status==='free'){t.items=[];t.persons=0;t.recibio=null;t.cierra=null;t.cliente=null;t.horaEntrada=null;}
+  if(status==='occupied'){
+    if(t.persons===0)t.persons=1;
+    if(!t.horaEntrada)t.horaEntrada=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  }
+  refreshTW(t);renderSidebar();renderSummary();
+  toast('Estado: '+{free:'Libre',occupied:'Ocupada'}[status]||status,'✓');
+}
+function onFreeConfirmInput(inp){
+  const ok=inp.value.trim().toLowerCase()==='eliminar';
+  inp.classList.toggle('ok',ok);
+  document.getElementById('freeConfirmBtn').classList.toggle('ready',ok);
+}
+function confirmFreeTable(){
+  if(!pendingFreeTableId)return;
+  const inp=document.getElementById('freeConfirmInput');
+  if(inp.value.trim().toLowerCase()!=='eliminar')return;
+  closeFreeModal();
+  applyStatus(pendingFreeTableId,'free');
+  pendingFreeTableId=null;
+  toast('Pedido eliminado y mesa liberada','🗑');
+}
+function closeFreeModal(){
+  document.getElementById('freeModalBg').classList.remove('show');
+  pendingFreeTableId=null;
+}
+function cobrar(){
+  const t=getTable(selectedTableId);if(!t||!t.items.length)return;
+  const{tot}=ttl(t);
+  document.getElementById('finMesaNum').textContent='Mesa '+t.num+' — '+cf().name;
+  document.getElementById('finTotal').textContent=fmt(tot);
+  document.getElementById('finRecibio').value=t.recibio||'';
+  document.getElementById('finCierra').value=t.cierra||'';
+  document.getElementById('finCliente').value=t.cliente||'';
+  document.getElementById('finModalBg').classList.add('show');
+  if(!t.recibio)setTimeout(()=>document.getElementById('finRecibio').focus(),120);
+  else if(!t.cierra)setTimeout(()=>document.getElementById('finCierra').focus(),120);
+}
+function confirmCobrar(){
+  const t=getTable(selectedTableId);if(!t)return;
+  const recibio=document.getElementById('finRecibio').value.trim();
+  const cierra=document.getElementById('finCierra').value.trim();
+  const cliente=document.getElementById('finCliente').value.trim();
+  if(!recibio){toast('Indica quién recibió la mesa','⚠️');document.getElementById('finRecibio').focus();return;}
+  if(!cierra){toast('Indica quién cierra el servicio','⚠️');document.getElementById('finCierra').focus();return;}
+  t.recibio=recibio;t.cierra=cierra;if(cliente)t.cliente=cliente;
+  const{tot}=ttl(t);
+  const num=t.num;
+  closeFinModal();
+  t.status='free';t.items=[];t.persons=0;t.recibio=null;t.cierra=null;t.cliente=null;t.horaEntrada=null;
+  selectedTableId=null;currentTab='pedido';
+  menuFilter={cat:'Todos',search:''};
+  renderCanvas();renderSidebar();renderSummary();
+  toast('Mesa '+num+' cerrada — '+fmt(tot)+' · por '+cierra,'💰');
+}
+function closeFinModal(){document.getElementById('finModalBg').classList.remove('show');}
+function refreshTW(t){
+  const el=document.getElementById('tw-'+t.id);if(!el)return;
+  el.className=`table-widget${(!editMode&&selectedTableId===t.id)?' selected':''}${editMode&&editSelectedTableId===t.id?' edit-selected':''}`;
+  el.innerHTML=makeSVG(t);
+  renderSummary();
+}
+
+// edit
+function toggleEdit(){
+  editMode=!editMode;
+  editSelectedTableId=null;
+  document.getElementById('editBtn').classList.toggle('active',editMode);
+  document.getElementById('editOverlay').classList.toggle('show',editMode);
+  document.getElementById('editToolbar').classList.toggle('show',editMode);
+  document.getElementById('floorCanvas').className='floor-canvas'+(editMode?' edit-mode':'');
+  if(!editMode){selectedTableId=null;}
+  renderCanvas();
+  renderSidebar();
+  toast(editMode?'Modo edición — mantén presionado para mover':'Modo edición desactivado',editMode?'✏️':'✓');
+}
+function addTable(){
+  pendingShape=document.getElementById('shapeSelect').value;
+  if(pendingShape==='cashier'||pendingShape==='wc'){
+    const f=cf();
+    const label=pendingShape==='cashier'?'Cajero':'Baño';
+    const count=f.tables.filter(x=>x.shape===pendingShape).length+1;
+    const w=pendingShape==='cashier'?70:65,h=65;
+    const t={id:uid(),num:label+(count>1?' '+count:''),x:Math.round((80+Math.random()*200)/10)*10,y:Math.round((80+Math.random()*200)/10)*10,w,h,shape:pendingShape,status:'free',cap:0,persons:0,items:[],recibio:null,cierra:null,cliente:null,horaEntrada:null,rot:0};
+    f.tables.push(t);renderCanvas();renderSummary();
+    toast(label+' añadido al plano','✚');
+    return;
+  }
+  document.getElementById('mName').value=cf().tables.filter(x=>x.shape!=='cashier'&&x.shape!=='wc').length+1;
+  document.getElementById('mCap').value=pendingShape==='bar'?8:4;
+  document.getElementById('mStatus').value='free';
+  document.getElementById('modalBg').classList.add('show');
+  setTimeout(()=>document.getElementById('mName').focus(),100);
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('show')}
+function confirmAddTable(){
+  const f=cf();
+  const num=document.getElementById('mName').value.trim()||String(f.tables.length+1);
+  const cap=parseInt(document.getElementById('mCap').value)||4;
+  const status=document.getElementById('mStatus').value;
+  let w=80,h=80;
+  if(pendingShape==='rect'){w=110;h=80;}
+  if(pendingShape==='bar'){w=220;h=50;}
+  const t={id:uid(),num,x:Math.round((60+Math.random()*160)/10)*10,y:Math.round((80+Math.random()*160)/10)*10,w,h,shape:pendingShape,status,cap,persons:0,items:[],recibio:null,cierra:null,cliente:null,horaEntrada:null,rot:0};
+  f.tables.push(t);closeModal();renderCanvas();renderSummary();
+  toast('Mesa "'+num+'" creada','✚');
+}
+function addFloor(){document.getElementById('floorName').value='';document.getElementById('floorModalBg').classList.add('show');setTimeout(()=>document.getElementById('floorName').focus(),100)}
+function closeFloorModal(){document.getElementById('floorModalBg').classList.remove('show')}
+function confirmAddFloor(){
+  const name=document.getElementById('floorName').value.trim();if(!name)return;
+  floors.push({id:fidGen(),name,tables:[]});
+  currentFloorId=floors[floors.length-1].id;
+  closeFloorModal();renderAll();
+  toast('Piso "'+name+'" creado','🏢');
+}
+function deleteFloor(){
+  if(floors.length<=1){toast('Debe haber al menos un piso','⚠️');return;}
+  const f=cf();
+  document.getElementById('delPisoModalNombre').textContent='"'+f.name+'"';
+  document.getElementById('delPisoMesasCount').textContent=f.tables.length;
+  document.getElementById('delPisoConfirmInput').value='';
+  document.getElementById('delPisoConfirmBtn').classList.remove('ready');
+  document.getElementById('delPisoModalBg').classList.add('show');
+  setTimeout(()=>document.getElementById('delPisoConfirmInput').focus(),120);
+}
+function onDelPisoInput(inp){
+  const ok=inp.value.trim().toLowerCase()==='eliminar';
+  inp.classList.toggle('ok',ok);
+  document.getElementById('delPisoConfirmBtn').classList.toggle('ready',ok);
+}
+function confirmDelPiso(){
+  if(document.getElementById('delPisoConfirmInput').value.trim().toLowerCase()!=='eliminar')return;
+  closeDelPisoModal();
+  floors=floors.filter(x=>x.id!==currentFloorId);
+  currentFloorId=floors[0].id;editMode=false;editSelectedTableId=null;
+  renderAll();toast('Piso eliminado','🗑');
+}
+function closeDelPisoModal(){document.getElementById('delPisoModalBg').classList.remove('show');}
+
+function renderAll(){
+  renderFloorTabs();renderCanvas();renderSummary();renderSidebar();
+  document.getElementById('editBtn').classList.toggle('active',editMode);
+  document.getElementById('editOverlay').classList.toggle('show',editMode);
+  document.getElementById('editToolbar').classList.toggle('show',editMode);
+}
+renderAll();
+</script>
+</body>
+</html>
